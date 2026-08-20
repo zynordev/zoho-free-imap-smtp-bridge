@@ -30,10 +30,24 @@ The current release preserves normal text/plain and text/html content and common
 
 Do not proxy the mail hostname through Cloudflare. IMAP and SMTP need a direct DNS record.
 
+## DNS and Zoho verification
+
+Before starting the bridge:
+
+1. Add an **A** record for `mail.example.com` pointing to the server IP. Keep it **DNS only**; do not proxy IMAP or SMTP through Cloudflare.
+2. Keep Zoho's MX records unchanged.
+3. Add the TXT record Zoho displays for domain verification. The name is usually `@` and the content is unique to your Zoho organization.
+4. Wait for DNS propagation and click **Verify** in Zoho.
+
+The bridge does not create DNS records automatically. The Zoho TXT value is account-specific and DNS providers have different APIs. The guided setup prints this checklist and asks the user to confirm that TXT verification is complete.
+
 ## Quick start
 
 ```bash
 sudo deploy/install.sh
+
+# Optional guided setup; it does not change DNS automatically.
+sudo deploy/setup-wizard.sh
 
 # Then edit the generated secret file.
 /opt/mailbridge/venv/bin/pip install -r requirements.txt
@@ -52,6 +66,8 @@ systemctl enable --now mailbridge
 
 Postfix must authenticate Thunderbird users on port 587 and route authenticated bridge mail to the `mailbridge` transport. Dovecot must expose virtual Maildir users on IMAPS 993. Configuration notes are in `deploy/postfix/README.md` and `deploy/dovecot/README.md`.
 
+The wizard asks for local mailbox settings and per-account OAuth values, writes them to `/etc/mailbridge/mailbridge.env` with mode `0600`, and does not print secrets back to the terminal. It does not replace the Postfix/Dovecot configuration steps.
+
 ## Environment
 
 Account variables are normalized. For `person@example.com` use:
@@ -59,6 +75,8 @@ Account variables are normalized. For `person@example.com` use:
 ```text
 ZOHO_PERSON_AT_EXAMPLE_COM_ACCOUNT_ID=...
 ZOHO_PERSON_AT_EXAMPLE_COM_FOLDER_ID=...
+ZOHO_PERSON_AT_EXAMPLE_COM_CLIENT_ID=...
+ZOHO_PERSON_AT_EXAMPLE_COM_CLIENT_SECRET=...
 ZOHO_PERSON_AT_EXAMPLE_COM_REFRESH_TOKEN=...
 ```
 
@@ -87,6 +105,7 @@ The Thunderbird password is the local Dovecot/Postfix password, not the Zoho pas
 - Restrict `From` addresses to authenticated accounts.
 - Keep `.env` and OAuth refresh tokens out of Git.
 - Do not log message bodies or credentials.
+- Never commit `.env`, OAuth secrets, refresh tokens, mailbox passwords, or TLS private keys.
 
 ## License
 
