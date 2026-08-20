@@ -44,9 +44,11 @@ def token(account):
     if cached and cached[1] > time.time() + 60:
         return cached[0]
     refresh = account_value(account, "REFRESH_TOKEN")
-    if not CLIENT_ID or not CLIENT_SECRET or not refresh:
+    client_id = account_value(account, "CLIENT_ID") or CLIENT_ID
+    client_secret = account_value(account, "CLIENT_SECRET") or CLIENT_SECRET
+    if not client_id or not client_secret or not refresh:
         raise RuntimeError(f"OAuth configuration missing for {account}")
-    response = requests.post(TOKEN_URL, data={"refresh_token": refresh, "client_id": CLIENT_ID, "client_secret": CLIENT_SECRET, "grant_type": "refresh_token"}, timeout=30)
+    response = requests.post(TOKEN_URL, data={"refresh_token": refresh, "client_id": client_id, "client_secret": client_secret, "grant_type": "refresh_token"}, timeout=30)
     response.raise_for_status()
     data = response.json()
     access = data["access_token"]
