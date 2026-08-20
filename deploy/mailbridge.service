@@ -1,0 +1,23 @@
+[Unit]
+Description=Zoho Mail API Bridge
+After=network-online.target dovecot.service postfix.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mailbridge
+Group=mailbridge
+EnvironmentFile=/etc/mailbridge/mailbridge.env
+ExecStart=/opt/mailbridge/venv/bin/python /opt/mailbridge/mailbridge.py
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# Replace this path for every configured account.
+ReadWritePaths=/var/lib/mailbridge /var/spool/mailbridge/outbound /vmail/example.com/user/Maildir/new
+
+[Install]
+WantedBy=multi-user.target
+
