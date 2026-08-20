@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+umask 077
+queue=${MAILBRIDGE_QUEUE:-/var/spool/mailbridge/outbound}
+mkdir -p "$queue"
+file=$(mktemp "$queue/message.XXXXXX.eml")
+meta="$file.meta"
+cleanup() { rm -f "$file" "$meta"; }
+trap cleanup INT TERM HUP
+sender=
+recipients=
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --sender=*) sender=${1#--sender=} ;;
+    --recipients=*) recipients=${1#--recipients=} ;;
+  esac
+  shift
+done
+cat > "$file"
+printf '%s\n' "sender=$sender" "recipients=$recipients" > "$meta"
+chown mailbridge:mailbridge "$file" "$meta"
+trap - INT TERM HUP
+
