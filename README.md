@@ -47,7 +47,7 @@ The bridge does not create DNS records automatically. The Zoho TXT value is acco
 sudo deploy/install.sh
 
 # Optional guided setup; it does not change DNS automatically.
-sudo deploy/setup-wizard.sh
+sudo bash deploy/setup-wizard.sh
 
 # Then edit the generated secret file.
 /opt/mailbridge/venv/bin/pip install -r requirements.txt
