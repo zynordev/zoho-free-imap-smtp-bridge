@@ -41,6 +41,26 @@ Before starting the bridge:
 
 The bridge does not create DNS records automatically. The Zoho TXT value is account-specific and DNS providers have different APIs. The guided setup prints this checklist and asks the user to confirm that TXT verification is complete.
 
+## Create Zoho OAuth values
+
+For each mailbox, open the Zoho API Console for the same Zoho organization and create a **Self Client**. Generate a one-time code with these scopes:
+
+```text
+ZohoMail.accounts.READ,ZohoMail.folders.READ,ZohoMail.messages.READ,ZohoMail.messages.CREATE
+```
+
+Exchange the code immediately; it expires quickly:
+
+```bash
+curl -X POST 'https://accounts.zoho.eu/oauth/v2/token' \
+  --data-urlencode 'code=ONE_TIME_CODE' \
+  --data-urlencode 'client_id=CLIENT_ID' \
+  --data-urlencode 'client_secret=CLIENT_SECRET' \
+  --data-urlencode 'grant_type=authorization_code'
+```
+
+Store the returned `refresh_token` in the wizard. Use the Zoho Mail API `/api/accounts` and `/api/accounts/{accountId}/folders` endpoints with the temporary access token to obtain the mailbox `ACCOUNT_ID` and Inbox `FOLDER_ID`. Never put these values in GitHub or a chat message.
+
 ## Quick start
 
 ```bash
