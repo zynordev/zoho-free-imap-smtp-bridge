@@ -123,11 +123,17 @@ def account_folders(account):
         folder_id = str(row.get("folderId") or "")
         if not folder_id:
             continue
-        if str(row.get("folderType") or "").lower() == "inbox":
+        path = str(row.get("path") or "").strip()
+        name = str(row.get("folderName") or "").strip()
+        # Zoho reports folderType=Inbox for user-created top-level folders
+        # too (a "Newsletter" folder comes back as type Inbox), so the type
+        # alone cannot identify the real INBOX — match the path instead.
+        # Prefer the path for naming as well, so nested folders keep their
+        # hierarchy: "/Work/Invoices" -> ".Work.Invoices".
+        if path == "/Inbox" or (not path and name.lower() == "inbox"):
             folders.append(("", folder_id))
         else:
-            name = str(row.get("folderName") or row.get("path") or folder_id)
-            folders.append(("." + safe_mailbox_name(name), folder_id))
+            folders.append(("." + safe_mailbox_name(path or name or folder_id), folder_id))
     FOLDER_CACHE[account] = (folders, time.time() + FOLDER_CACHE_TTL)
     return folders
 
