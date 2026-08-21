@@ -15,7 +15,7 @@ mailbridge unix - n n - - pipe
   flags= user=mailbridge argv=/usr/local/sbin/mailbridge-submit --sender=${sender} --recipients=${recipient}
 ```
 
-The `user=mailbridge` clause is required: `mailbridge-submit` writes the queued file with the invoking user as owner, and the `mailbridge.service` daemon (also running as `mailbridge`, see `ReadWritePaths` in `mailbridge.service`) needs to read it. If the pipe runs as a different user, queued mail will be unreadable by the bridge and submissions will fail.
+The `user=mailbridge` clause is required: `install.sh` creates `/var/spool/mailbridge/outbound` owned by the `mailbridge` user, and only its owner has write access to that directory. If the pipe runs as a different user, `mailbridge-submit` cannot even create the queued file there (permission denied), so submissions will fail outright.
 
 Create `/etc/postfix/sender_login_maps` with one allowed sender per line, e.g.:
 

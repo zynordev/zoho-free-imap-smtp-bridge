@@ -17,7 +17,7 @@ id mailbridge >/dev/null 2>&1 || useradd --system --gid mailbridge --home-dir /v
 
 install -d -o root -g mailbridge -m 0750 "$BRIDGE_DIR"
 install -d -o mailbridge -g mailbridge -m 0750 /var/lib/mailbridge
-install -d -o root -g mailbridge -m 0750 /var/spool/mailbridge/outbound
+install -d -o mailbridge -g mailbridge -m 0750 /var/spool/mailbridge/outbound
 install -m 0640 -o root -g mailbridge "$ROOT_DIR/mailbridge.py" "$BRIDGE_DIR/mailbridge.py"
 install -m 0644 "$ROOT_DIR/requirements.txt" "$BRIDGE_DIR/requirements.txt"
 python3 -m venv "$BRIDGE_DIR/venv"
