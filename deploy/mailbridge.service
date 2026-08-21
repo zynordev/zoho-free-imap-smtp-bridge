@@ -11,6 +11,12 @@ EnvironmentFile=/etc/mailbridge/mailbridge.env
 ExecStart=/opt/mailbridge/venv/bin/python /opt/mailbridge/mailbridge.py
 Restart=on-failure
 RestartSec=10
+# Directories the bridge creates under each account's Maildir (new
+# subfolders included) must stay group-writable so Dovecot's vmail
+# user — a different uid, sharing access only via a common group and
+# setgid on the account's home directory — can move/index mail there.
+# The default umask (022) would strip that group-write bit.
+UMask=0007
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
