@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import logging
 import os
+import re
 import sqlite3
 import time
 import uuid
@@ -21,6 +22,8 @@ CLIENT_ID = os.getenv("ZOHO_CLIENT_ID", "")
 CLIENT_SECRET = os.getenv("ZOHO_CLIENT_SECRET", "")
 ACCOUNTS = [x.strip().lower() for x in os.getenv("ZOHO_ACCOUNTS", "").split(",") if x.strip()]
 TOKENS = {}
+FOLDER_CACHE = {}
+FOLDER_CACHE_TTL = 600
 
 
 def key(account, suffix):
@@ -92,9 +95,47 @@ def message_rows(data):
     return payload if isinstance(payload, list) else []
 
 
-def deliver_maildir(account, raw):
+def safe_mailbox_name(name):
+    # Maildir++ subfolder naming: "." separates hierarchy levels, so collapse
+    # any path separators from Zoho's folder path into dots too. Keep
+    # non-ASCII letters (e.g. Turkish folder names) intact; only strip
+    # control characters, which are the only genuinely unsafe bytes here.
+    cleaned = re.sub(r"[\x00-\x1f\x7f]", "_", name.strip("/").replace("/", "."))
+    return cleaned or "folder"
+
+
+def account_folders(account):
+    """Discover every Zoho folder for the account and where it lands locally.
+    Returns a list of (mailbox, folder_id) where mailbox is "" for the
+    account's Inbox (delivered straight into Maildir/new) or ".Name" for
+    every other folder (delivered into a Maildir++ subfolder). Cached for
+    FOLDER_CACHE_TTL seconds since the folder list rarely changes and this
+    would otherwise cost one extra Zoho API call every poll cycle."""
+    cached = FOLDER_CACHE.get(account)
+    if cached and cached[1] > time.time():
+        return cached[0]
+    account_id = account_value(account, "ACCOUNT_ID")
+    data = api(account, "GET", f"/api/accounts/{account_id}/folders").json()
+    payload = data.get("data", data)
+    rows = payload if isinstance(payload, list) else []
+    folders = []
+    for row in rows:
+        folder_id = str(row.get("folderId") or "")
+        if not folder_id:
+            continue
+        if str(row.get("folderType") or "").lower() == "inbox":
+            folders.append(("", folder_id))
+        else:
+            name = str(row.get("folderName") or row.get("path") or folder_id)
+            folders.append(("." + safe_mailbox_name(name), folder_id))
+    FOLDER_CACHE[account] = (folders, time.time() + FOLDER_CACHE_TTL)
+    return folders
+
+
+def deliver_maildir(account, mailbox, raw):
     local, domain = account.split("@", 1)
-    new_dir = MAILDIR_ROOT / domain / local / "Maildir" / "new"
+    base = MAILDIR_ROOT / domain / local / "Maildir"
+    new_dir = (base / mailbox / "new") if mailbox else (base / "new")
     new_dir.mkdir(parents=True, exist_ok=True)
     name = f"{int(time.time())}.{os.getpid()}.{uuid.uuid4().hex}.mailbridge"
     # Keep temp and final files on the same filesystem for hardened systemd units.
@@ -106,34 +147,43 @@ def deliver_maildir(account, raw):
 
 def inbound(account):
     account_id = account_value(account, "ACCOUNT_ID")
-    folder_id = account_value(account, "FOLDER_ID") or "INBOX"
     if not account_id:
         LOG.error("account ID missing account=%s", account)
         return
-    query = urlencode({"folderId": folder_id, "limit": 50})
-    rows = message_rows(api(account, "GET", f"/api/accounts/{account_id}/messages/view?{query}").json())
+    try:
+        folders = account_folders(account)
+    except Exception:
+        LOG.exception("folder discovery failed account=%s", account)
+        return
     conn = db()
     try:
-        for row in rows:
-            message_id = str(row.get("messageId") or row.get("message_id") or "")
-            if not message_id or conn.execute("SELECT 1 FROM processed_messages WHERE account=? AND message_id=?", (account, message_id)).fetchone():
-                continue
+        for mailbox, folder_id in folders:
+            query = urlencode({"folderId": folder_id, "limit": 50})
             try:
-                raw_data = api(account, "GET", f"/api/accounts/{account_id}/messages/{message_id}/originalmessage").json()
-                payload = raw_data.get("data", raw_data)
-                raw = payload.get("content", "") if isinstance(payload, dict) else ""
-                if not raw:
-                    LOG.warning("inbound message has no MIME content account=%s message_id=%s", account, message_id)
-                    continue
-                deliver_maildir(account, raw)
+                rows = message_rows(api(account, "GET", f"/api/accounts/{account_id}/messages/view?{query}").json())
             except Exception:
-                # Isolate one bad message so it cannot block the rest of the batch;
-                # it stays unprocessed and is retried next cycle.
-                LOG.exception("inbound message failed account=%s message_id=%s", account, message_id)
+                LOG.exception("folder listing failed account=%s folder_id=%s", account, folder_id)
                 continue
-            conn.execute("INSERT INTO processed_messages(account,message_id) VALUES(?,?)", (account, message_id))
-            conn.commit()
-            LOG.info("inbound delivered account=%s message_id=%s", account, message_id)
+            for row in rows:
+                message_id = str(row.get("messageId") or row.get("message_id") or "")
+                if not message_id or conn.execute("SELECT 1 FROM processed_messages WHERE account=? AND message_id=?", (account, message_id)).fetchone():
+                    continue
+                try:
+                    raw_data = api(account, "GET", f"/api/accounts/{account_id}/messages/{message_id}/originalmessage").json()
+                    payload = raw_data.get("data", raw_data)
+                    raw = payload.get("content", "") if isinstance(payload, dict) else ""
+                    if not raw:
+                        LOG.warning("inbound message has no MIME content account=%s message_id=%s", account, message_id)
+                        continue
+                    deliver_maildir(account, mailbox, raw)
+                except Exception:
+                    # Isolate one bad message so it cannot block the rest of the batch;
+                    # it stays unprocessed and is retried next cycle.
+                    LOG.exception("inbound message failed account=%s mailbox=%s message_id=%s", account, mailbox or "INBOX", message_id)
+                    continue
+                conn.execute("INSERT INTO processed_messages(account,message_id) VALUES(?,?)", (account, message_id))
+                conn.commit()
+                LOG.info("inbound delivered account=%s mailbox=%s message_id=%s", account, mailbox or "INBOX", message_id)
     finally:
         conn.close()
 

@@ -13,12 +13,13 @@ Zoho remains responsible for Internet delivery. The VPS is only a local IMAP/SMT
 
 - OAuth 2.0 refresh-token authentication
 - Multiple Zoho accounts on one bridge
+- Full folder sync: every Zoho folder (Inbox, Sent, Drafts, Trash, Spam, custom folders, ...) is discovered automatically and mirrored into a matching Maildir++ subfolder
 - Inbound polling with SQLite duplicate protection
 - Outbound delivery through Zoho Mail API
 - Local Maildir delivery for Dovecot
 - No credentials in the repository
 
-The current release preserves normal text/plain and text/html content and common reply headers. Full folder synchronization and outbound MIME attachment upload are planned for a later release; Zoho remains the source of truth.
+The current release preserves normal text/plain and text/html content and common reply headers. Sync is one-way and additive only (Zoho -> local): the bridge never deletes or moves mail that already landed in Dovecot, even if it's deleted or moved on the Zoho side. Outbound MIME attachment upload is planned for a later release; Zoho remains the source of truth.
 
 ## Requirements
 
@@ -59,7 +60,7 @@ curl -X POST 'https://accounts.zoho.eu/oauth/v2/token' \
   --data-urlencode 'grant_type=authorization_code'
 ```
 
-Store the returned `refresh_token` in the wizard. Use the Zoho Mail API `/api/accounts` and `/api/accounts/{accountId}/folders` endpoints with the temporary access token to obtain the mailbox `ACCOUNT_ID` and Inbox `FOLDER_ID`. Never put these values in GitHub or a chat message.
+Store the returned `refresh_token` in the wizard. Use the Zoho Mail API `/api/accounts` endpoint with the temporary access token to obtain the mailbox `ACCOUNT_ID` (folders are discovered automatically at runtime — no per-folder ID needed). Never put these values in GitHub or a chat message.
 
 ## Quick start
 
@@ -76,7 +77,7 @@ $EDITOR /etc/mailbridge/mailbridge.env
 
 `install.sh` already creates `/etc/mailbridge/mailbridge.env` from `.env.example` if it does not exist yet. Do not re-run `cp .env.example /etc/mailbridge/mailbridge.env` after the wizard — it has no existence check and will silently overwrite your configured secrets with the blank template.
 
-The installer copies the bridge and helper. Edit `/etc/systemd/system/mailbridge.service` and add every configured account's `Maildir/new` path to `ReadWritePaths` (space-separated — the shipped line covers only one example account), configure Postfix/Dovecot and OAuth, then run:
+The installer copies the bridge and helper. Edit `/etc/systemd/system/mailbridge.service` and add every configured account's `Maildir` path (the whole tree, not just `Maildir/new` — folder sync writes subfolders under it) to `ReadWritePaths` (space-separated — the shipped line covers only one example account), configure Postfix/Dovecot and OAuth, then run:
 
 ```bash
 systemctl daemon-reload
@@ -93,7 +94,6 @@ Account variables are normalized. For `person@example.com` use:
 
 ```text
 ZOHO_PERSON_AT_EXAMPLE_COM_ACCOUNT_ID=...
-ZOHO_PERSON_AT_EXAMPLE_COM_FOLDER_ID=...
 ZOHO_PERSON_AT_EXAMPLE_COM_CLIENT_ID=...
 ZOHO_PERSON_AT_EXAMPLE_COM_CLIENT_SECRET=...
 ZOHO_PERSON_AT_EXAMPLE_COM_REFRESH_TOKEN=...
@@ -115,6 +115,8 @@ Keep the refresh token, client secret, mailbox passwords and TLS private keys ou
 | Username | Full email address |
 
 The Thunderbird password is the local Dovecot/Postfix password, not the Zoho password.
+
+Because the bridge now syncs the real Zoho Sent folder back down, **turn off Thunderbird's own copy-to-Sent behavior for this account**: Account Settings -> Copies & Folders -> uncheck "Place a copy in". Zoho's Send API already files a Sent copy on its side, and the bridge mirrors that copy into the account's IMAP Sent folder within one poll interval. If Thunderbird's own setting stays on too, every message you send gets filed twice (Thunderbird's immediate local copy, plus the bridge's copy pulled back from Zoho a few seconds later) as two separate, unmerged entries.
 
 ## Security checklist
 

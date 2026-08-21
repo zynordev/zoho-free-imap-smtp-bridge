@@ -15,11 +15,14 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-# This lists one example account. For multiple accounts, add every
-# configured account's Maildir/new path here too (space-separated) —
-# do not just replace the example, or the other accounts' mail
-# deliveries will fail under ProtectSystem=strict.
-ReadWritePaths=/var/lib/mailbridge /var/spool/mailbridge/outbound /vmail/example.com/user/Maildir/new
+# The bridge auto-discovers every Zoho folder per account (Inbox, Sent,
+# Drafts, Trash, custom folders, ...) and creates a matching Maildir++
+# subfolder on demand, so the writable path must cover the whole account
+# Maildir, not just Maildir/new. This lists one example account; for
+# multiple accounts, add every configured account's Maildir path here
+# too (space-separated) — do not just replace the example, or the other
+# accounts' mail deliveries will fail under ProtectSystem=strict.
+ReadWritePaths=/var/lib/mailbridge /var/spool/mailbridge/outbound /vmail/example.com/user/Maildir
 
 [Install]
 WantedBy=multi-user.target
