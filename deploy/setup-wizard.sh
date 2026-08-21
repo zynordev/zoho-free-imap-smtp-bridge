@@ -19,7 +19,7 @@ esac
 
 read -r -p "Zoho account email: " ACCOUNT
 ACCOUNT=${ACCOUNT,,}
-KEY=$(printf '%s' "$ACCOUNT" | tr '@.' '_at_' | tr '[:lower:]' '[:upper:]')
+KEY=$(printf '%s' "$ACCOUNT" | sed -e 's/@/_AT_/' -e 's/\./_/g' | tr '[:lower:]' '[:upper:]')
 KEY="ZOHO_${KEY}"
 read -r -p "Zoho account ID: " ACCOUNT_ID
 read -r -p "Zoho Inbox folder ID: " FOLDER_ID
