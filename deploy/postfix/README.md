@@ -5,8 +5,18 @@ Keep port 25 disabled for this architecture. Authenticated Thunderbird submissio
 Create a transport map containing:
 
 ```text
+# Local system notifications (cron, sudo, logwatch) must not reach Zoho.
+root@example.com           discard:
+root@mail.example.com      discard:
+root@<the machine hostname> discard:
+postmaster@example.com     discard:
+double-bounce@example.com  discard:
+MAILER-DAEMON@example.com  discard:
+
 * mailbridge:
 ```
+
+The `discard:` lines matter. Once Postfix is installed, anything on the box that mails root — a cron job's output, a sudo alert — is picked up locally and, with a bare `* mailbridge:` map, handed to the bridge. Its sender (`root@…`) is not a configured Zoho account, so the bridge cannot send it; the message is quarantined into `outbound/failed/` and logged. Discarding them at the Postfix layer keeps that noise out of the queue entirely.
 
 Install `deploy/mailbridge-submit` as `/usr/local/sbin/mailbridge-submit`, then define the pipe transport in `master.cf`:
 

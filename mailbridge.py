@@ -192,6 +192,22 @@ def addresses(value):
     return ", ".join(x.strip() for x in value.split(",") if x.strip())
 
 
+def quarantine(path, meta, reason):
+    """Move a permanently undeliverable message out of the queue.
+
+    Without this the message stays in the queue and is retried every poll
+    cycle forever (a few times a minute), filling the log and never
+    succeeding, because nothing about it can change on its own. Keep the
+    file rather than deleting it so the mail is not silently lost.
+    """
+    failed = QUEUE / "failed"
+    failed.mkdir(parents=True, exist_ok=True)
+    path.replace(failed / path.name)
+    if meta.exists():
+        meta.replace(failed / meta.name)
+    LOG.error("outbound quarantined file=%s reason=%s", path.name, reason)
+
+
 def outbound_file(path):
     meta = Path(str(path) + ".meta")
     if not meta.exists():
@@ -203,7 +219,10 @@ def outbound_file(path):
             values[k] = v
     sender = values.get("sender", "").lower()
     if sender not in ACCOUNTS:
-        LOG.error("outbound sender not configured sender=%s file=%s", sender, path.name)
+        # Permanent: this sender will never become configured by itself.
+        # Typically local system mail (cron, sudo, logwatch) that reached
+        # the transport; route those to discard: in Postfix instead.
+        quarantine(path, meta, f"sender not configured: {sender}")
         return
     account_id = account_value(sender, "ACCOUNT_ID")
     msg = BytesParser(policy=policy.default).parsebytes(path.read_bytes())
