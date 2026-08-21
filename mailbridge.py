@@ -138,10 +138,27 @@ def account_folders(account):
     return folders
 
 
-def deliver_maildir(account, mailbox, raw):
+def mailbox_root(account, mailbox):
     local, domain = account.split("@", 1)
     base = MAILDIR_ROOT / domain / local / "Maildir"
-    new_dir = (base / mailbox / "new") if mailbox else (base / "new")
+    return (base / mailbox) if mailbox else base
+
+
+def ensure_mailbox(account, mailbox):
+    """Create the Maildir for a folder even while it is still empty.
+
+    Otherwise a folder only materialises once its first message arrives,
+    so empty Zoho folders (Drafts, Archive, a user's own folders) are
+    simply missing from the client's folder list until something lands
+    in them.
+    """
+    root = mailbox_root(account, mailbox)
+    for sub in ("cur", "new", "tmp"):
+        (root / sub).mkdir(parents=True, exist_ok=True)
+
+
+def deliver_maildir(account, mailbox, raw):
+    new_dir = mailbox_root(account, mailbox) / "new"
     new_dir.mkdir(parents=True, exist_ok=True)
     name = f"{int(time.time())}.{os.getpid()}.{uuid.uuid4().hex}.mailbridge"
     # Keep temp and final files on the same filesystem for hardened systemd units.
@@ -164,6 +181,10 @@ def inbound(account):
     conn = db()
     try:
         for mailbox, folder_id in folders:
+            try:
+                ensure_mailbox(account, mailbox)
+            except Exception:
+                LOG.exception("mailbox create failed account=%s mailbox=%s", account, mailbox or "INBOX")
             query = urlencode({"folderId": folder_id, "limit": 50})
             try:
                 rows = message_rows(api(account, "GET", f"/api/accounts/{account_id}/messages/view?{query}").json())
