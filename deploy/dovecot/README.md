@@ -21,7 +21,7 @@ Also disable the stock system-user auth (`!include auth-system.conf.ext` in `10-
 
 The Maildir and Dovecot index files must be writable by the Dovecot mail user. The bridge needs write access to each configured account's whole `Maildir` tree (not just `Maildir/new`), since it creates new subfolders there as Zoho's folder list changes. Keep IMAPS on 993 and disable plaintext IMAP.
 
-The hardened systemd unit uses `ProtectSystem=strict`; add every configured account's `Maildir` path (the whole tree) to `ReadWritePaths`.
+The hardened systemd unit uses `ProtectSystem=strict`; add every configured account's **home** directory (`/vmail/<domain>/<user>`) to `ReadWritePaths` — not the `Maildir` inside it, which the bridge creates itself and which therefore may not exist when the unit starts (see the note in `mailbridge.service`).
 
 **Sharing the account directory between the `mailbridge` user and Dovecot's mail user.** These are two different uids, so group membership plus setgid is what makes both able to read and write the same files:
 

@@ -77,7 +77,7 @@ $EDITOR /etc/mailbridge/mailbridge.env
 
 `install.sh` already creates `/etc/mailbridge/mailbridge.env` from `.env.example` if it does not exist yet. Do not re-run `cp .env.example /etc/mailbridge/mailbridge.env` after the wizard — it has no existence check and will silently overwrite your configured secrets with the blank template.
 
-The installer copies the bridge and helper. Edit `/etc/systemd/system/mailbridge.service` and add every configured account's `Maildir` path (the whole tree, not just `Maildir/new` — folder sync writes subfolders under it) to `ReadWritePaths` (space-separated — the shipped line covers only one example account), configure Postfix/Dovecot and OAuth, then run:
+The installer copies the bridge and helper. Edit `/etc/systemd/system/mailbridge.service` and add every configured account's **home** directory — `/vmail/<domain>/<user>`, not the `Maildir` inside it — to `ReadWritePaths` (space-separated; the shipped line covers only one example account). Naming the `Maildir` instead deadlocks the service: `ProtectSystem=strict` requires every listed path to exist at start, but the bridge is what creates the Maildir, so it can never start to create it (`status=226/NAMESPACE`). Then configure Postfix/Dovecot and OAuth, and run:
 
 ```bash
 systemctl daemon-reload

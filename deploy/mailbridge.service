@@ -21,14 +21,19 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-# The bridge auto-discovers every Zoho folder per account (Inbox, Sent,
-# Drafts, Trash, custom folders, ...) and creates a matching Maildir++
-# subfolder on demand, so the writable path must cover the whole account
-# Maildir, not just Maildir/new. This lists one example account; for
-# multiple accounts, add every configured account's Maildir path here
-# too (space-separated) — do not just replace the example, or the other
-# accounts' mail deliveries will fail under ProtectSystem=strict.
-ReadWritePaths=/var/lib/mailbridge /var/spool/mailbridge/outbound /vmail/example.com/user/Maildir
+# List each account's HOME directory (the one holding Maildir), not the
+# Maildir itself. The bridge creates Maildir and its per-folder
+# subdirectories on demand, and under ProtectSystem=strict every path
+# named here must already exist when the unit starts — naming a
+# not-yet-created Maildir deadlocks the service (it cannot start, so it
+# cannot create the directory that would let it start), failing with
+# status=226/NAMESPACE. The account home is created during setup, so it
+# is always there.
+#
+# This lists one example account; for multiple accounts add every
+# configured account's home here too (space-separated) — do not just
+# replace the example, or the other accounts' deliveries will fail.
+ReadWritePaths=/var/lib/mailbridge /var/spool/mailbridge/outbound /vmail/example.com/user
 
 [Install]
 WantedBy=multi-user.target
