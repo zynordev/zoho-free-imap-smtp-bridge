@@ -31,20 +31,39 @@ INTERVAL=${INTERVAL:-5}
 
 install -d -m 0750 "$(dirname "$ENV_FILE")"
 umask 077
-cat > "$ENV_FILE" <<EOF
+
+# Merge with any accounts already configured by a previous wizard run,
+# instead of overwriting them (the bridge supports multiple accounts).
+ALL_ACCOUNTS="$ACCOUNT"
+if [ -f "$ENV_FILE" ]; then
+  EXISTING_ACCOUNTS=$(sed -n 's/^ZOHO_ACCOUNTS=//p' "$ENV_FILE" | head -n1)
+  if [ -n "$EXISTING_ACCOUNTS" ]; then
+    ALL_ACCOUNTS=$(printf '%s\n%s\n' "$EXISTING_ACCOUNTS" "$ACCOUNT" | tr ',' '\n' | sed '/^$/d' | awk '!seen[$0]++' | paste -sd, -)
+  fi
+fi
+
+TMP_FILE=$(mktemp)
+{
+  if [ -f "$ENV_FILE" ]; then
+    grep -v -e '^ZOHO_ACCOUNTS=' -e "^${KEY}_" "$ENV_FILE" || true
+  else
+    cat <<EOF
 ZOHO_API_BASE=https://mail.zoho.eu
 ZOHO_TOKEN_URL=https://accounts.zoho.eu/oauth/v2/token
-ZOHO_ACCOUNTS=$ACCOUNT
 MAILBRIDGE_INTERVAL=$INTERVAL
 MAILBRIDGE_DB=/var/lib/mailbridge/state.sqlite3
 MAILBRIDGE_QUEUE=/var/spool/mailbridge/outbound
 MAILBRIDGE_LOG_LEVEL=INFO
-${KEY}_ACCOUNT_ID=$ACCOUNT_ID
-${KEY}_FOLDER_ID=$FOLDER_ID
-${KEY}_CLIENT_ID=$CLIENT_ID
-${KEY}_CLIENT_SECRET=$CLIENT_SECRET
-${KEY}_REFRESH_TOKEN=$REFRESH_TOKEN
 EOF
+  fi
+  echo "ZOHO_ACCOUNTS=$ALL_ACCOUNTS"
+  echo "${KEY}_ACCOUNT_ID=$ACCOUNT_ID"
+  echo "${KEY}_FOLDER_ID=$FOLDER_ID"
+  echo "${KEY}_CLIENT_ID=$CLIENT_ID"
+  echo "${KEY}_CLIENT_SECRET=$CLIENT_SECRET"
+  echo "${KEY}_REFRESH_TOKEN=$REFRESH_TOKEN"
+} > "$TMP_FILE"
+mv "$TMP_FILE" "$ENV_FILE"
 chmod 0600 "$ENV_FILE"
 
 echo

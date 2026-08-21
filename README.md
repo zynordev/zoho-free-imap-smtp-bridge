@@ -76,7 +76,7 @@ $EDITOR /etc/mailbridge/mailbridge.env
 
 `install.sh` already creates `/etc/mailbridge/mailbridge.env` from `.env.example` if it does not exist yet. Do not re-run `cp .env.example /etc/mailbridge/mailbridge.env` after the wizard — it has no existence check and will silently overwrite your configured secrets with the blank template.
 
-The installer copies the bridge and helper. Replace the example Maildir path in `ReadWritePaths` for every account, configure Postfix/Dovecot and OAuth, then run:
+The installer copies the bridge and helper. Edit `/etc/systemd/system/mailbridge.service` and add every configured account's `Maildir/new` path to `ReadWritePaths` (space-separated — the shipped line covers only one example account), configure Postfix/Dovecot and OAuth, then run:
 
 ```bash
 systemctl daemon-reload

@@ -15,7 +15,10 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-# Replace this path for every configured account.
+# This lists one example account. For multiple accounts, add every
+# configured account's Maildir/new path here too (space-separated) —
+# do not just replace the example, or the other accounts' mail
+# deliveries will fail under ProtectSystem=strict.
 ReadWritePaths=/var/lib/mailbridge /var/spool/mailbridge/outbound /vmail/example.com/user/Maildir/new
 
 [Install]
