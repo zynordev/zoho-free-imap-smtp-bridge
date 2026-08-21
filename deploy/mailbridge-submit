@@ -18,6 +18,5 @@ while [ "$#" -gt 0 ]; do
 done
 cat > "$file"
 printf '%s\n' "sender=$sender" "recipients=$recipients" > "$meta"
-chown mailbridge:mailbridge "$file" "$meta"
 trap - INT TERM HUP
 

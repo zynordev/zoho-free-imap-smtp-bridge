@@ -66,16 +66,15 @@ Store the returned `refresh_token` in the wizard. Use the Zoho Mail API `/api/ac
 ```bash
 sudo deploy/install.sh
 
-# Optional guided setup; it does not change DNS automatically.
+# Optional guided setup; it fills /etc/mailbridge/mailbridge.env for you
+# and does not change DNS automatically.
 sudo bash deploy/setup-wizard.sh
 
-# Then edit the generated secret file.
-/opt/mailbridge/venv/bin/pip install -r requirements.txt
-install -d -m 0750 /etc/mailbridge
-cp .env.example /etc/mailbridge/mailbridge.env
-chmod 0640 /etc/mailbridge/mailbridge.env
+# If you skipped the wizard, edit the secrets by hand instead:
 $EDITOR /etc/mailbridge/mailbridge.env
 ```
+
+`install.sh` already creates `/etc/mailbridge/mailbridge.env` from `.env.example` if it does not exist yet. Do not re-run `cp .env.example /etc/mailbridge/mailbridge.env` after the wizard — it has no existence check and will silently overwrite your configured secrets with the blank template.
 
 The installer copies the bridge and helper. Replace the example Maildir path in `ReadWritePaths` for every account, configure Postfix/Dovecot and OAuth, then run:
 

@@ -39,6 +39,24 @@ def db():
     return conn
 
 
+RETRYABLE_STATUS = (429, 500, 502, 503, 504)
+
+
+def _send(method, url, timeout, attempts=3, **kwargs):
+    for attempt in range(1, attempts + 1):
+        try:
+            response = requests.request(method, url, timeout=timeout, **kwargs)
+        except (requests.ConnectionError, requests.Timeout):
+            if attempt == attempts:
+                raise
+            time.sleep(2 ** (attempt - 1))
+            continue
+        if response.status_code in RETRYABLE_STATUS and attempt < attempts:
+            time.sleep(2 ** (attempt - 1))
+            continue
+        return response
+
+
 def token(account):
     cached = TOKENS.get(account)
     if cached and cached[1] > time.time() + 60:
@@ -48,7 +66,7 @@ def token(account):
     client_secret = account_value(account, "CLIENT_SECRET") or CLIENT_SECRET
     if not client_id or not client_secret or not refresh:
         raise RuntimeError(f"OAuth configuration missing for {account}")
-    response = requests.post(TOKEN_URL, data={"refresh_token": refresh, "client_id": client_id, "client_secret": client_secret, "grant_type": "refresh_token"}, timeout=30)
+    response = _send("POST", TOKEN_URL, 30, data={"refresh_token": refresh, "client_id": client_id, "client_secret": client_secret, "grant_type": "refresh_token"})
     response.raise_for_status()
     data = response.json()
     access = data["access_token"]
@@ -60,7 +78,7 @@ def api(account, method, path, **kwargs):
     headers = kwargs.pop("headers", {})
     headers["Authorization"] = "Zoho-oauthtoken " + token(account)
     headers["Accept"] = "application/json"
-    response = requests.request(method, API_BASE + path, headers=headers, timeout=45, **kwargs)
+    response = _send(method, API_BASE + path, 45, headers=headers, **kwargs)
     response.raise_for_status()
     return response
 
@@ -81,7 +99,7 @@ def deliver_maildir(account, raw):
     name = f"{int(time.time())}.{os.getpid()}.{uuid.uuid4().hex}.mailbridge"
     # Keep temp and final files on the same filesystem for hardened systemd units.
     tmp_path = new_dir / ("." + name + ".tmp")
-    tmp_path.write_bytes(raw.encode())
+    tmp_path.write_bytes(raw.encode("utf-8", errors="replace"))
     os.chmod(tmp_path, 0o644)
     os.replace(tmp_path, new_dir / name)
 
@@ -100,13 +118,19 @@ def inbound(account):
             message_id = str(row.get("messageId") or row.get("message_id") or "")
             if not message_id or conn.execute("SELECT 1 FROM processed_messages WHERE account=? AND message_id=?", (account, message_id)).fetchone():
                 continue
-            raw_data = api(account, "GET", f"/api/accounts/{account_id}/messages/{message_id}/originalmessage").json()
-            payload = raw_data.get("data", raw_data)
-            raw = payload.get("content", "") if isinstance(payload, dict) else ""
-            if not raw:
-                LOG.warning("inbound message has no MIME content account=%s message_id=%s", account, message_id)
+            try:
+                raw_data = api(account, "GET", f"/api/accounts/{account_id}/messages/{message_id}/originalmessage").json()
+                payload = raw_data.get("data", raw_data)
+                raw = payload.get("content", "") if isinstance(payload, dict) else ""
+                if not raw:
+                    LOG.warning("inbound message has no MIME content account=%s message_id=%s", account, message_id)
+                    continue
+                deliver_maildir(account, raw)
+            except Exception:
+                # Isolate one bad message so it cannot block the rest of the batch;
+                # it stays unprocessed and is retried next cycle.
+                LOG.exception("inbound message failed account=%s message_id=%s", account, message_id)
                 continue
-            deliver_maildir(account, raw)
             conn.execute("INSERT INTO processed_messages(account,message_id) VALUES(?,?)", (account, message_id))
             conn.commit()
             LOG.info("inbound delivered account=%s message_id=%s", account, message_id)
