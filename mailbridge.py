@@ -27,7 +27,12 @@ FOLDER_CACHE_TTL = 600
 
 
 def key(account, suffix):
-    return "ZOHO_" + account.replace("@", "_AT_").replace(".", "_").upper() + "_" + suffix
+    # Only "." was replaced before, so a hyphenated domain produced a name
+    # like ZOHO_INFO_AT_HK-YAZILIM_COM_ACCOUNT_ID. systemd refuses to load an
+    # EnvironmentFile assignment whose name is not alphanumeric/underscore, so
+    # that account's settings silently never reached the process.
+    normalised = re.sub(r"[^A-Za-z0-9_]", "_", account.replace("@", "_AT_"))
+    return "ZOHO_" + normalised.upper() + "_" + suffix
 
 
 def account_value(account, suffix):

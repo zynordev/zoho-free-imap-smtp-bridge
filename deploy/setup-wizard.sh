@@ -19,7 +19,13 @@ esac
 
 read -r -p "Zoho account email: " ACCOUNT
 ACCOUNT=${ACCOUNT,,}
-KEY=$(printf '%s' "$ACCOUNT" | sed -e 's/@/_AT_/' -e 's/\./_/g' | tr '[:lower:]' '[:upper:]')
+# LC_ALL=C is required, not cosmetic: under a Turkish locale (tr_TR.UTF-8)
+# "[:lower:]" maps i to the dotted capital I, so tr leaves every "i" alone and
+# the wizard writes ZOHO_iLETiSiM_AT_... while mailbridge.py looks up
+# ZOHO_ILETISIM_AT_... — the account then fails with "OAuth configuration
+# missing". Replacing every non-alphanumeric character (not just ".") also
+# keeps hyphenated domains from producing names systemd rejects.
+KEY=$(printf '%s' "$ACCOUNT" | LC_ALL=C sed -e 's/@/_AT_/' -e 's/[^a-zA-Z0-9_]/_/g' | LC_ALL=C tr 'a-z' 'A-Z')
 KEY="ZOHO_${KEY}"
 read -r -p "Zoho account ID: " ACCOUNT_ID
 read -r -p "Zoho OAuth client ID: " CLIENT_ID
