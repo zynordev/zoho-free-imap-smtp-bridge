@@ -260,7 +260,19 @@ def outbound_file(path):
         payload["ccAddress"] = addresses(msg.get("Cc", ""))
     if values.get("recipients"):
         payload["bccAddress"] = addresses(values["recipients"])
-    api(sender, "POST", f"/api/accounts/{account_id}/messages", json=payload)
+    try:
+        api(sender, "POST", f"/api/accounts/{account_id}/messages", json=payload)
+    except requests.HTTPError as exc:
+        status = exc.response.status_code if exc.response is not None else None
+        # 4xx that survived _send's retries means Zoho rejected the message
+        # itself (bad recipient, malformed payload, revoked grant). Retrying
+        # cannot change that, so without quarantining it the file stays in the
+        # queue and is resent every poll cycle forever. 429 is excluded: it is
+        # already retried by _send and is genuinely temporary.
+        if status is not None and 400 <= status < 500 and status != 429:
+            quarantine(path, meta, f"Zoho rejected the message: HTTP {status}")
+            return
+        raise
     path.unlink()
     meta.unlink(missing_ok=True)
     LOG.info("outbound sent account=%s file=%s", sender, path.name)
