@@ -30,5 +30,5 @@ usermod -aG vmail mailbridge
 chmod g+s /vmail/<domain>/<user>          # every new file/dir made below inherits group "vmail"
 ```
 
-`mailbridge.service` also sets `UMask=0007` so directories it creates stay group-writable (the default `022` umask would leave them `rwxr-xr-x`, which blocks Dovecot's mail user — a group member, not the owner — from moving mail between `new/` and `cur/` or writing its own index files). Message *files* the bridge writes are `0644` (group read-only) on purpose — Dovecot only needs to move/rename them between directories, never edit their bytes, and directory-level write is enough for that.
+`mailbridge.service` also sets `UMask=0007` so directories it creates stay group-writable (the default `022` umask would leave them `rwxr-xr-x`, which blocks Dovecot's mail user — a group member, not the owner — from moving mail between `new/` and `cur/` or writing its own index files). Message *files* the bridge writes are `0640` (group read-only) on purpose — Dovecot only needs to move/rename them between directories, never edit their bytes, and directory-level write is enough for that. They are deliberately not world-readable, so other local accounts on the machine cannot read delivered mail.
 

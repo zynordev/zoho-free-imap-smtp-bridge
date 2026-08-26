@@ -164,7 +164,11 @@ def deliver_maildir(account, mailbox, raw):
     # Keep temp and final files on the same filesystem for hardened systemd units.
     tmp_path = new_dir / ("." + name + ".tmp")
     tmp_path.write_bytes(raw.encode("utf-8", errors="replace"))
-    os.chmod(tmp_path, 0o644)
+    # Group-readable for Dovecot's mail user (see deploy/dovecot/README.md),
+    # but not world-readable: every local account on the box could otherwise
+    # read the delivered mail. Dovecot only moves/renames these files, so
+    # group read plus directory write is all it needs.
+    os.chmod(tmp_path, 0o640)
     os.replace(tmp_path, new_dir / name)
 
 
