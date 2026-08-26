@@ -6,17 +6,23 @@ mkdir -p "$queue"
 file=$(mktemp "$queue/message.XXXXXX.eml")
 meta="$file.meta"
 cleanup() { rm -f "$file" "$meta"; }
-trap cleanup INT TERM HUP
+# EXIT too: under "set -e" a failing "cat" (full disk, truncated input) skips
+# the signal traps entirely, leaving a .eml with no .meta behind. The bridge
+# ignores those forever, so without this they just pile up in the queue.
+trap cleanup EXIT INT TERM HUP
 sender=
 recipients=
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --sender=*) sender=${1#--sender=} ;;
-    --recipients=*) recipients=${1#--recipients=} ;;
+    # Postfix expands ${recipient} to one argument per recipient, so this flag
+    # arrives repeated. Overwriting kept only the last one and silently dropped
+    # every other recipient of the same delivery; collect them all instead.
+    --recipients=*) recipients="${recipients:+$recipients,}${1#--recipients=}" ;;
   esac
   shift
 done
 cat > "$file"
 printf '%s\n' "sender=$sender" "recipients=$recipients" > "$meta"
-trap - INT TERM HUP
+trap - EXIT INT TERM HUP
 

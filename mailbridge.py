@@ -7,6 +7,7 @@ import time
 import uuid
 from email import policy
 from email.parser import BytesParser
+from email.utils import formataddr, getaddresses
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -216,7 +217,15 @@ def inbound(account):
 
 
 def addresses(value):
-    return ", ".join(x.strip() for x in value.split(",") if x.strip())
+    # Splitting on "," by hand breaks any RFC 5322 address whose display name
+    # itself contains a comma ('"Yilmaz, Ahmet" <ahmet@example.com>'), which
+    # Zoho then rejects as a malformed address. getaddresses understands the
+    # quoting rules; formataddr puts the parts back together correctly.
+    return ", ".join(formataddr((name, addr)) for name, addr in getaddresses([value]) if addr)
+
+
+def address_set(*values):
+    return {addr.lower() for _, addr in getaddresses([v for v in values if v]) if addr}
 
 
 def quarantine(path, meta, reason):
@@ -259,7 +268,14 @@ def outbound_file(path):
     if msg.get("Cc"):
         payload["ccAddress"] = addresses(msg.get("Cc", ""))
     if values.get("recipients"):
-        payload["bccAddress"] = addresses(values["recipients"])
+        # "recipients" is the envelope recipient list, so it contains the To
+        # and Cc addresses as well. Handing all of them to Zoho as Bcc made
+        # everyone already named in a header receive the mail a second time;
+        # only the addresses that appear in no header are real Bcc recipients.
+        header_addrs = address_set(msg.get("To", ""), msg.get("Cc", ""))
+        bcc = [addr for _, addr in getaddresses([values["recipients"]]) if addr and addr.lower() not in header_addrs]
+        if bcc:
+            payload["bccAddress"] = ", ".join(bcc)
     api(sender, "POST", f"/api/accounts/{account_id}/messages", json=payload)
     path.unlink()
     meta.unlink(missing_ok=True)
