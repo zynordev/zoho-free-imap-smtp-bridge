@@ -10,3 +10,8 @@ venv/
 work/
 secrets/
 
+
+# Local secrets
+deploy/cachyos/conf/mailbridge.env
+deploy/cachyos/conf/users
+

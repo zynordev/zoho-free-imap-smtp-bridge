@@ -1,0 +1,4 @@
+# Kullanici listesi formati:
+# kullanici@domain.com:{SHA512-CRYPT}hash_buraya:5000:5000::/vmail/domain.com/kullanici::
+# Sifre hash'i uretmek icin: openssl passwd -6 "sifreniz"
+person@example.com:{PLAIN}parola:5000:5000::/vmail/example.com/person::

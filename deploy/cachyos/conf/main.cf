@@ -1,0 +1,43 @@
+# mailbridge: Zoho API bridge - Localhost CachyOS
+smtpd_banner = $myhostname ESMTP
+biff = no
+append_dot_mydomain = no
+readme_directory = no
+compatibility_level = 3.10
+
+myhostname = localhost
+mydomain = localdomain
+myorigin = $mydomain
+mydestination = localhost
+mynetworks = 127.0.0.0/8, [::1]/128
+inet_interfaces = 127.0.0.1
+inet_protocols = ipv4
+
+relayhost =
+
+# TLS
+smtpd_tls_cert_file = /etc/ssl/certs/mailbridge-cert.pem
+smtpd_tls_key_file = /etc/ssl/private/mailbridge-key.pem
+smtpd_tls_security_level = may
+smtpd_tls_protocols = !SSLv2, !SSLv3
+smtp_tls_security_level = may
+
+# SASL - Dovecot
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_auth_enable = yes
+smtpd_sasl_security_options = noanonymous
+smtpd_sasl_local_domain =
+
+smtpd_sender_login_maps = hash:/etc/postfix/sender_login_maps
+mua_sender_restrictions = reject_sender_login_mismatch, permit_sasl_authenticated, reject
+mua_relay_restrictions = permit_sasl_authenticated, reject
+mua_recipient_restrictions = permit_sasl_authenticated, reject
+
+transport_maps = hash:/etc/postfix/transport
+mailbridge_destination_recipient_limit = 1
+
+alias_maps =
+alias_database =
+mailbox_size_limit = 0
+recipient_delimiter = +

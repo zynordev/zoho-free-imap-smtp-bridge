@@ -1,0 +1,4 @@
+# Sistem bildirimlerini at
+root@localhost discard:
+# Kalan tum mailleri mailbridge transportuna ilet
+* mailbridge:

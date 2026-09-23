@@ -1,0 +1,35 @@
+[Unit]
+Description=Zoho Mail API Bridge
+After=network-online.target dovecot.service postfix.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mailbridge
+Group=mailbridge
+EnvironmentFile=/etc/mailbridge/mailbridge.env
+ExecStart=/opt/mailbridge/venv/bin/python /opt/mailbridge/mailbridge.py
+Restart=on-failure
+RestartSec=10
+# Directories the bridge creates under each account's Maildir (new
+# subfolders included) must stay group-writable so Dovecot's vmail
+# user — a different uid, sharing access only via a common group and
+# setgid on the account's home directory — can move/index mail there.
+# The default umask (022) would strip that group-write bit.
+UMask=0007
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# The bridge auto-discovers every Zoho folder per account (Inbox, Sent,
+# Drafts, Trash, custom folders, ...) and creates a matching Maildir++
+# subfolder on demand, so the writable path must cover the whole account
+# Maildir, not just Maildir/new. This lists one example account; for
+# multiple accounts, add every configured account's Maildir path here
+# too (space-separated) — do not just replace the example, or the other
+# accounts' mail deliveries will fail under ProtectSystem=strict.
+ReadWritePaths=/var/lib/mailbridge /var/spool/mailbridge/outbound /vmail/hkyazilim.com.tr/info /vmail/bilgicoderteam.tr/iletisim /vmail/bilgicoderteam.tr/kuzey /vmail/hkyazilim.com.tr/halilerdemyanik /vmail/hkyazilim.com.tr/kuzey /vmail/bilgicoderteam.tr/halilerdemyanik
+
+[Install]
+WantedBy=multi-user.target
+
