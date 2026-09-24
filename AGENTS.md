@@ -17,7 +17,7 @@ Sistem dis aglara kapali olup yalnizca 127.0.0.1 uzerinden calisir:
 - Dovecot kullanicilari ve parolalar: /etc/dovecot/users (SHA512-CRYPT hash)
 - Postfix yapilandirmasi: /etc/postfix/main.cf, /etc/postfix/master.cf (veritabani map tipi lmdb:)
 - Postfix gonderici ve tasima eslesmeleri: /etc/postfix/sender_login_maps, /etc/postfix/transport
-- Mail kutulari: /vmail/<domain>/<kullanici>/Maildir (sahibi vmail:vmail uid 5000, mailbridge vmail grubundadir)
+- Mail kutulari: /vmail/<domain>/<kullanici>/Maildir (sahibi vmail:vmail uid 5000, mailbridge vmail grubundadir. SDDM giris ekraninda gorunmemesi icin /etc/sddm.conf.d/hide-vmail.conf ile HideUsers/HideShells kurali tanimlanmistir)
 - SQLite senkronizasyon durumu: /var/lib/mailbridge/state.sqlite3
 
 ## Yonetim Komutlari
