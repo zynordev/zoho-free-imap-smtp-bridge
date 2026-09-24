@@ -63,9 +63,24 @@ chmod 750 /opt/mailbridge/mailbridge.py
 python3 -m venv --system-site-packages /opt/mailbridge/venv
 /opt/mailbridge/venv/bin/pip install --upgrade pip requests >/dev/null 2>&1 || true
 
-ENV_SRC="$SCRIPT_DIR/conf/mailbridge.env"
-[ -f "$ENV_SRC" ] || ENV_SRC="$SCRIPT_DIR/conf/mailbridge.env.example"
-cp "$ENV_SRC" /etc/mailbridge/mailbridge.env
+YEDEK_DIR="/home/kuzey/Projeler/arsiv/vds/yedekler/vds-son-kapanis-yedegi-20260923/icerik"
+if [ -f "$YEDEK_DIR/var/lib/mailbridge/state.sqlite3" ] && [ ! -f /var/lib/mailbridge/state.sqlite3 ]; then
+  cp "$YEDEK_DIR/var/lib/mailbridge/state.sqlite3" /var/lib/mailbridge/state.sqlite3
+  chown mailbridge:mailbridge /var/lib/mailbridge/state.sqlite3
+  chmod 640 /var/lib/mailbridge/state.sqlite3
+fi
+
+if [ ! -f /etc/mailbridge/mailbridge.env ]; then
+  ENV_SRC="$SCRIPT_DIR/conf/mailbridge.env"
+  if [ ! -f "$ENV_SRC" ]; then
+    if [ -f "$YEDEK_DIR/etc/mailbridge/mailbridge.env" ]; then
+      ENV_SRC="$YEDEK_DIR/etc/mailbridge/mailbridge.env"
+    else
+      ENV_SRC="$SCRIPT_DIR/conf/mailbridge.env.example"
+    fi
+  fi
+  cp "$ENV_SRC" /etc/mailbridge/mailbridge.env
+fi
 chown root:mailbridge /etc/mailbridge/mailbridge.env
 chmod 640 /etc/mailbridge/mailbridge.env
 
@@ -78,9 +93,17 @@ echo "=== 6. Dovecot Yapilandiriliyor ==="
 rm -rf /etc/dovecot/conf.d 2>/dev/null || true
 cp "$SCRIPT_DIR/conf/dovecot.conf" /etc/dovecot/dovecot.conf
 
-USERS_SRC="$SCRIPT_DIR/conf/users"
-[ -f "$USERS_SRC" ] || USERS_SRC="$SCRIPT_DIR/conf/users.example"
-cp "$USERS_SRC" /etc/dovecot/users
+if [ ! -f /etc/dovecot/users ]; then
+  USERS_SRC="$SCRIPT_DIR/conf/users"
+  if [ ! -f "$USERS_SRC" ]; then
+    if [ -f "$YEDEK_DIR/etc/dovecot/users" ]; then
+      USERS_SRC="$YEDEK_DIR/etc/dovecot/users"
+    else
+      USERS_SRC="$SCRIPT_DIR/conf/users.example"
+    fi
+  fi
+  cp "$USERS_SRC" /etc/dovecot/users
+fi
 chown root:vmail /etc/dovecot/users
 chmod 640 /etc/dovecot/users
 
@@ -88,13 +111,29 @@ echo "=== 7. Postfix Yapilandiriliyor ==="
 cp "$SCRIPT_DIR/conf/main.cf" /etc/postfix/main.cf
 cp "$SCRIPT_DIR/conf/master.cf" /etc/postfix/master.cf
 
-SLM_SRC="$SCRIPT_DIR/conf/sender_login_maps"
-[ -f "$SLM_SRC" ] || SLM_SRC="$SCRIPT_DIR/conf/sender_login_maps.example"
-cp "$SLM_SRC" /etc/postfix/sender_login_maps
+if [ ! -f /etc/postfix/sender_login_maps ]; then
+  SLM_SRC="$SCRIPT_DIR/conf/sender_login_maps"
+  if [ ! -f "$SLM_SRC" ]; then
+    if [ -f "$YEDEK_DIR/etc/postfix/sender_login_maps" ]; then
+      SLM_SRC="$YEDEK_DIR/etc/postfix/sender_login_maps"
+    else
+      SLM_SRC="$SCRIPT_DIR/conf/sender_login_maps.example"
+    fi
+  fi
+  cp "$SLM_SRC" /etc/postfix/sender_login_maps
+fi
 
-TR_SRC="$SCRIPT_DIR/conf/transport"
-[ -f "$TR_SRC" ] || TR_SRC="$SCRIPT_DIR/conf/transport.example"
-cp "$TR_SRC" /etc/postfix/transport
+if [ ! -f /etc/postfix/transport ]; then
+  TR_SRC="$SCRIPT_DIR/conf/transport"
+  if [ ! -f "$TR_SRC" ]; then
+    if [ -f "$YEDEK_DIR/etc/postfix/transport" ]; then
+      TR_SRC="$YEDEK_DIR/etc/postfix/transport"
+    else
+      TR_SRC="$SCRIPT_DIR/conf/transport.example"
+    fi
+  fi
+  cp "$TR_SRC" /etc/postfix/transport
+fi
 
 postmap /etc/postfix/sender_login_maps
 postmap /etc/postfix/transport

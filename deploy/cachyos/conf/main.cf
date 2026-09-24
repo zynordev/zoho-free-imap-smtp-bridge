@@ -3,7 +3,7 @@ smtpd_banner = $myhostname ESMTP
 biff = no
 append_dot_mydomain = no
 readme_directory = no
-compatibility_level = 3.10
+compatibility_level = 3.11
 
 myhostname = localhost
 mydomain = localdomain
@@ -29,12 +29,12 @@ smtpd_sasl_auth_enable = yes
 smtpd_sasl_security_options = noanonymous
 smtpd_sasl_local_domain =
 
-smtpd_sender_login_maps = hash:/etc/postfix/sender_login_maps
+smtpd_sender_login_maps = lmdb:/etc/postfix/sender_login_maps
 mua_sender_restrictions = reject_sender_login_mismatch, permit_sasl_authenticated, reject
 mua_relay_restrictions = permit_sasl_authenticated, reject
 mua_recipient_restrictions = permit_sasl_authenticated, reject
 
-transport_maps = hash:/etc/postfix/transport
+transport_maps = lmdb:/etc/postfix/transport
 mailbridge_destination_recipient_limit = 1
 
 alias_maps =
