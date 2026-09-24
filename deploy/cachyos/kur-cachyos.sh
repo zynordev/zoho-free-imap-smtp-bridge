@@ -104,7 +104,7 @@ if [ ! -f /etc/dovecot/users ]; then
   fi
   cp "$USERS_SRC" /etc/dovecot/users
 fi
-chown root:vmail /etc/dovecot/users
+chown root:dovecot /etc/dovecot/users
 chmod 640 /etc/dovecot/users
 
 echo "=== 7. Postfix Yapilandiriliyor ==="
